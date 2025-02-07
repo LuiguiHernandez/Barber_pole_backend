@@ -1,4 +1,4 @@
-Fasapi
+fasapi
 python-jose
 passlib
 pymongo
