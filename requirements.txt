@@ -4,3 +4,4 @@ passlib
 pymongo
 python-multipart
 pytz
+uvicorn
