@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter , HTTPException,status
 from pydantic import BaseModel
+from pymongo import ReturnDocument
 from db.models.user import User
 from db.schemas.user import user_schema , users_schema
 from db.client import db_client
@@ -12,7 +13,13 @@ import asyncio
 router = APIRouter(prefix="/userdb" , tags=["user"], responses={404: {"message": "no encontrado"}})
 # Entidad user 
 
-@router.get("/", response_model=list[User])
+@router.get("/userdb1")
+async def get_users():
+    user = users_schema(db_client.users.find())
+    print(user)
+    return user
+
+@router.get("/users", response_model=list[User])
 async def users():
     return users_schema(db_client.users.find())
 
@@ -22,7 +29,7 @@ async def user_id(id: str):
     return search_user("_id", ObjectId(id))
 
 
-@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)  # agrego ala base de datos 
 async def user(user: User):
     
     # Verifica si el ID ya existe en la lista 
@@ -40,13 +47,10 @@ async def user(user: User):
     id = db_client.users.insert_one(user_dict).inserted_id
     
     # Recuperar el usuario recién insertado desde la base de datos
-    new_user = user_schema(db_client.users.find_one({"_id": id}))
+    new_user = user_schema(db_client.users.find_one({"_id": ObjectId(id)}))
 
     # Devolver el usuario con el id generado por MongoDB
     return User(**new_user)
-
-async def search_user(id : int):
-    return ""
 
 
 @router.put("/" , response_model=User)
@@ -59,7 +63,7 @@ async def user(user: User ):
 
     try:
         updated_user = user_schema(db_client.users.find_one_and_replace(
-            {"_id": ObjectId(user_id)}, user_dict, return_document=True
+            {"_id": ObjectId(user_id)}, user_dict, return_document=ReturnDocument.AFTER
         )
         )
         if not updated_user:
@@ -76,14 +80,11 @@ async def user(id: str):
         found = db_client.users.find_one_and_delete({"_id": ObjectId(id)})
         if not found:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        return {"saucces": "usuarion eliminado"}
+        return {"saucces": "usuario eliminado"}
 
-def search_user(field: str , key):
-    try:
-        user = db_client.users.find_one({field: key})
-        return User(**user_schema(user))
-    except:
-        return {"error":"no se a encontrado el usuario"}
+def search_user(field: str, key):
+    user = db_client.users.find_one({field: key})
+    return User(**user_schema(user)) if user else None
 
 
 
