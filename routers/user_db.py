@@ -7,10 +7,20 @@ from db.models.user import User
 from db.schemas.user import user_schema , users_schema
 from db.client import db_client
 from bson import ObjectId
+from fastapi.security import OAuth2PasswordBearer , OAuth2PasswordRequestForm
+from jose import jwt , JWTError
+from passlib.context import CryptContext
+
 
 import asyncio
 
 router = APIRouter(prefix="/userdb" , tags=["user"], responses={404: {"message": "no encontrado"}})
+
+crypt = CryptContext(schemes=["bcrypt"], deprecated="auto") # contexto de incryptacion 
+KEY = "secret_key"
+ALGORITHM = "HS256"
+
+
 # Entidad user 
 
 @router.get("/userdb1")
@@ -48,9 +58,33 @@ async def user(user: User):
     
     # Recuperar el usuario recién insertado desde la base de datos
     new_user = user_schema(db_client.users.find_one({"_id": ObjectId(id)}))
-
+    print(new_user)
+    
+    password = new_user["password"]
+    print(password)
+    
+    hashed_password = crypt.hash(password)
+    print(hashed_password) 
+    
+    
+    password_hash = user_schema(db_client.users.find_one_and_update(
+        {"_id": ObjectId(id)}, # Filtro: usuario a actualizar
+        {"$set": {"password":hashed_password}}, # Nueva contraseña hasheada
+        return_document=ReturnDocument.AFTER 
+    ))
+    print("Contraseña actualizada correctamente:", password_hash)
+    
+    
+    # Usa "_id": ObjectId(id) para asegurarte de actualizar el usuario correcto.
+    user_after_update = db_client.users.find_one({"_id": ObjectId(id)})
+    print("Usuario después de actualizar:", user_after_update)
+    
+    # Ver cómo se ve el hash
+    user_update = User(**new_user)
+    user_update.password = hashed_password
+    
     # Devolver el usuario con el id generado por MongoDB
-    return User(**new_user)
+    return user_update
 
 
 @router.put("/" , response_model=User)

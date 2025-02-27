@@ -7,5 +7,4 @@ class User(BaseModel):
     full_name: Optional[str] = None 
     email: str
     password: str
-
-
+    
